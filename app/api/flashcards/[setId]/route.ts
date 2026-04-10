@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import {
   getSetById,
@@ -12,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ setId: string }> }
 ) {
   const { setId } = await params;
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
 
   const set = await getSetById(setId);
   if (!set) {
@@ -34,7 +35,7 @@ export async function PUT(
   { params }: { params: Promise<{ setId: string }> }
 ) {
   const { setId } = await params;
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -96,7 +97,7 @@ export async function DELETE(
   { params }: { params: Promise<{ setId: string }> }
 ) {
   const { setId } = await params;
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

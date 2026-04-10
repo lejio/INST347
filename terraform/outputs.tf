@@ -1,18 +1,13 @@
 # ---------- Outputs for .env.local ----------
 
-output "b2c_tenant_name" {
-  description = "Azure AD B2C tenant name (domain prefix)"
-  value       = var.b2c_domain_prefix
+output "mssql_server_fqdn" {
+  description = "MSSQL_SERVER — Azure SQL Server fully qualified domain name"
+  value       = azurerm_mssql_server.main.fully_qualified_domain_name
 }
 
-output "b2c_tenant_domain" {
-  description = "Azure AD B2C full domain"
-  value       = "${var.b2c_domain_prefix}.onmicrosoft.com"
-}
-
-output "b2c_tenant_id" {
-  description = "Azure AD B2C tenant ID"
-  value       = azurerm_aadb2c_directory.main.tenant_id
+output "mssql_database" {
+  description = "MSSQL_DATABASE — SQL database name"
+  value       = azurerm_mssql_database.auth.name
 }
 
 output "cosmos_endpoint" {
@@ -48,12 +43,13 @@ output "env_local_template" {
   description = "Copy this into .env.local (run `terraform output -raw env_local_template`)"
   sensitive   = true
   value       = <<-EOT
-    # Azure AD B2C — fill CLIENT_ID and CLIENT_SECRET from B2C portal app registration
-    AZURE_AD_B2C_TENANT_NAME=${var.b2c_domain_prefix}
-    AZURE_AD_B2C_CLIENT_ID=<from-b2c-portal-app-registration>
-    AZURE_AD_B2C_CLIENT_SECRET=<from-b2c-portal-app-registration>
-    AZURE_AD_B2C_PRIMARY_USER_FLOW=B2C_1_signupsignin
-    AUTH_SECRET=<run: npx auth secret>
+    BETTER_AUTH_SECRET=<run: openssl rand -hex 32>
+    BETTER_AUTH_URL=http://localhost:3000
+    MSSQL_SERVER=${azurerm_mssql_server.main.fully_qualified_domain_name}
+    MSSQL_DATABASE=${azurerm_mssql_database.auth.name}
+    MSSQL_USER=${var.mssql_admin_user}
+    MSSQL_PASSWORD=<your-mssql-password>
+    MSSQL_PORT=1433
     COSMOS_ENDPOINT=${azurerm_cosmosdb_account.main.endpoint}
     COSMOS_KEY=${azurerm_cosmosdb_account.main.primary_key}
     COSMOS_DATABASE=${azurerm_cosmosdb_sql_database.main.name}

@@ -12,7 +12,7 @@ resource "azurerm_storage_account" "main" {
     cors_rule {
       allowed_headers    = ["*"]
       allowed_methods    = ["GET", "PUT"]
-      allowed_origins    = [var.app_homepage_url]
+      allowed_origins    = ["http://localhost:3000"]
       exposed_headers    = ["*"]
       max_age_in_seconds = 3600
     }

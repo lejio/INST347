@@ -27,16 +27,28 @@ variable "storage_container_name" {
   default     = "uploads"
 }
 
-variable "b2c_domain_prefix" {
-  description = "Azure AD B2C tenant domain prefix (becomes <prefix>.onmicrosoft.com)"
+variable "mssql_admin_user" {
+  description = "Admin username for Azure SQL Server"
   type        = string
-  default     = "inst347flashcards"
+  default     = "sqladmin"
 }
 
-variable "app_homepage_url" {
-  description = "Homepage URL of the Next.js app"
+variable "mssql_admin_password" {
+  description = "Admin password for Azure SQL Server"
   type        = string
-  default     = "http://localhost:3000"
+  sensitive   = true
+}
+
+variable "mssql_database_name" {
+  description = "Name of the SQL database for better-auth"
+  type        = string
+  default     = "authdb"
+}
+
+variable "local_dev_ip" {
+  description = "Your local machine's public IP for SQL Server firewall rule"
+  type        = string
+  default     = "0.0.0.0"
 }
 
 variable "tags" {

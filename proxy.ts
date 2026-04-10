@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for Auth.js session cookie (authjs.session-token or __Secure-authjs.session-token)
-  const hasSession =
-    request.cookies.has("authjs.session-token") ||
-    request.cookies.has("__Secure-authjs.session-token");
+  const hasSession = !!getSessionCookie(request);
 
   // Protect dashboard pages — redirect to login
   if (pathname.startsWith("/dashboard") && !hasSession) {

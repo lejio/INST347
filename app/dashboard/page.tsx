@@ -1,10 +1,12 @@
-import { auth, signOut } from "@/app/lib/auth";
+import { auth } from "@/app/lib/auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSetsByUserId } from "@/app/lib/cosmosdb";
 import DashboardClient from "./client";
+import SignOutButton from "./sign-out-button";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) {
     redirect("/login");
   }
@@ -18,19 +20,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-semibold">Dashboard</h1>
           <p className="text-zinc-500">{session.user.name} ({session.user.email})</p>
         </div>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-        >
-          <button
-            type="submit"
-            className="rounded-lg border border-zinc-300 px-4 py-2 hover:bg-zinc-100"
-          >
-            Sign Out
-          </button>
-        </form>
+        <SignOutButton />
       </div>
 
       <DashboardClient initialSets={sets} />
