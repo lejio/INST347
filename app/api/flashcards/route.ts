@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
+import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import { getSetsByUserId, createSet } from "@/app/lib/cosmosdb";
 
 export async function GET() {
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -13,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

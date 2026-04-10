@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { headers } from "next/headers";
 import { auth } from "@/app/lib/auth";
 import { uploadFile } from "@/app/lib/blob-storage";
 import { generateFlashcards } from "@/app/lib/openai";
@@ -14,7 +15,7 @@ const ALLOWED_TYPES = [
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.email) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

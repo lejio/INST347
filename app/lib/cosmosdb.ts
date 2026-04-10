@@ -8,28 +8,8 @@ const client = new CosmosClient({
 
 const database = client.database(process.env.COSMOS_DATABASE!);
 
-export const usersContainer = database.container("users");
 export const flashcardSetsContainer = database.container("flashcard_sets");
 export const cardsContainer = database.container("cards");
-
-// --- Users ---
-
-export async function getOrCreateUser(email: string, name: string) {
-  const { resources } = await usersContainer.items
-    .query({
-      query: "SELECT * FROM c WHERE c.email = @email",
-      parameters: [{ name: "@email", value: email }],
-    })
-    .fetchAll();
-
-  if (resources.length > 0) {
-    return resources[0];
-  }
-
-  const user = { id: email, email, name };
-  const { resource } = await usersContainer.items.create(user);
-  return resource;
-}
 
 // --- Flashcard Sets ---
 

@@ -1,37 +1,43 @@
-import NextAuth from "next-auth";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { getOrCreateUser } from "./cosmosdb";
+import { betterAuth } from "better-auth";
+import { MssqlDialect } from "kysely";
+import * as Tedious from "tedious";
+import * as Tarn from "tarn";
+import { nextCookies } from "better-auth/next-js";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID!,
-    }),
-  ],
-  pages: {
-    signIn: "/login",
+const dialect = new MssqlDialect({
+  tarn: {
+    ...Tarn,
+    options: { min: 0, max: 10 },
   },
-  callbacks: {
-    async signIn({ user }) {
-      if (!user.email) return false;
-      await getOrCreateUser(user.email, user.name ?? "Unknown");
-      return true;
-    },
-    async jwt({ token, user }) {
-      if (user) {
-        token.email = user.email;
-        token.name = user.name;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token.email) {
-        session.user.email = token.email as string;
-        session.user.name = token.name as string;
-      }
-      return session;
-    },
+  tedious: {
+    ...Tedious,
+    connectionFactory: () =>
+      new Tedious.Connection({
+        authentication: {
+          options: {
+            password: process.env.MSSQL_PASSWORD!,
+            userName: process.env.MSSQL_USER!,
+          },
+          type: "default",
+        },
+        options: {
+          database: process.env.MSSQL_DATABASE!,
+          port: parseInt(process.env.MSSQL_PORT || "1433"),
+          trustServerCertificate: process.env.NODE_ENV === "development",
+          encrypt: true,
+        },
+        server: process.env.MSSQL_SERVER!,
+      }),
   },
+});
+
+export const auth = betterAuth({
+  database: {
+    dialect,
+    type: "mssql",
+  },
+  emailAndPassword: {
+    enabled: true,
+  },
+  plugins: [nextCookies()],
 });
