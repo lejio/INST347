@@ -32,6 +32,14 @@ resource "azurerm_mssql_firewall_rule" "azure_services" {
   end_ip_address   = "0.0.0.0"
 }
 
+# Allow all IPs (needed for Vercel serverless — dynamic IPs)
+resource "azurerm_mssql_firewall_rule" "allow_all" {
+  name             = "AllowAll"
+  server_id        = azurerm_mssql_server.main.id
+  start_ip_address = "0.0.0.0"
+  end_ip_address   = "255.255.255.255"
+}
+
 # Allow local dev machine
 resource "azurerm_mssql_firewall_rule" "local_dev" {
   name             = "AllowLocalDev"
