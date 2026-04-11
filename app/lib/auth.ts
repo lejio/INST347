@@ -39,5 +39,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://cardly-tau-tawny.vercel.app",
+    ...(process.env.VERCEL_URL
+      ? [`https://${process.env.VERCEL_URL}`]
+      : []),
+  ],
   plugins: [nextCookies()],
 });
