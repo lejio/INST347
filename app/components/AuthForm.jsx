@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn, signUp } from '@/lib/auth-client';
+import { signIn, signUp } from '@/app/lib/auth-client';
 import { useRouter } from 'next/navigation';
 
 export default function AuthForm() {
@@ -13,22 +13,29 @@ export default function AuthForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit() {
+  async function handleSubmit(e) {
+    e.preventDefault();
     setError('');
     setLoading(true);
 
-    try {
-      if (tab === 'login') {
-        await signIn.email({ email, password });
-      } else {
-        await signUp.email({ name, email, password });
+    if (tab === 'login') {
+      const { error: signInError } = await signIn.email({ email, password });
+      if (signInError) {
+        setError(signInError.message ?? 'Sign in failed');
+        setLoading(false);
+        return;
       }
-      router.push('/dashboard');
-    } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
+    } else {
+      const { error: signUpError } = await signUp.email({ email, password, name });
+      if (signUpError) {
+        setError(signUpError.message ?? 'Sign up failed');
+        setLoading(false);
+        return;
+      }
     }
+
+    setLoading(false);
+    router.push('/dashboard');
   }
 
   async function handleGoogle() {
@@ -36,7 +43,7 @@ export default function AuthForm() {
   }
 
   return (
-    <div style={styles.card}>
+    <form style={styles.card} onSubmit={handleSubmit}>
       <div style={styles.formHeader}>
         <h2 style={styles.h2}>
           {tab === 'login' ? 'Welcome back' : 'Create your account'}
@@ -103,8 +110,8 @@ export default function AuthForm() {
       {error && <p style={styles.error}>{error}</p>}
 
       <button
+        type="submit"
         style={{ ...styles.btnPrimary, opacity: loading ? 0.7 : 1 }}
-        onClick={handleSubmit}
         disabled={loading}
       >
         {loading ? 'Please wait...' : tab === 'login' ? 'Sign in' : 'Create account'}
@@ -116,10 +123,10 @@ export default function AuthForm() {
         <div style={styles.dividerLine} />
       </div>
 
-      <button style={styles.btnGoogle} onClick={handleGoogle}>
+      <button type="button" style={styles.btnGoogle} onClick={handleGoogle}>
         <span>Continue with Google</span>
       </button>
-    </div>
+    </form>
   );
 }
 

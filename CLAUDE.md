@@ -1,6 +1,4 @@
 @AGENTS.md
-<<<<<<< HEAD
-=======
 
 ## Build & Run
 - `npm run dev` — start dev server
@@ -17,4 +15,3 @@
 - Visibility values: `public`, `private`, `unlisted`
 - Ownership checks required before PUT/DELETE operations on flashcard sets
 - Azure infrastructure managed by Terraform in `terraform/`
->>>>>>> origin/Gene-backend
