@@ -1,0 +1,9 @@
+subscription_id = "<your-azure-subscription-id>"
+
+# Optionally override defaults:
+# project_name           = "inst347-flashcards"
+# location               = "eastus"
+# cosmos_database_name   = "flashcarddb"
+# storage_container_name = "uploads"
+# app_redirect_uri       = "http://localhost:3000/api/auth/callback/microsoft-entra-id"
+# app_homepage_url       = "http://localhost:3000"

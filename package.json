@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "name": "flashgen",
+=======
+  "name": "inst347-final-project",
+>>>>>>> origin/Gene-backend
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,18 +13,39 @@
     "lint": "eslint"
   },
   "dependencies": {
+<<<<<<< HEAD
     "better-auth": "^1.6.2",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"
+=======
+    "@azure/cosmos": "^4.9.2",
+    "@azure/storage-blob": "^12.31.0",
+    "better-auth": "^1.6.2",
+    "kysely": "^0.28.16",
+    "mammoth": "^1.12.0",
+    "next": "^16.2.3",
+    "openai": "^6.34.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tarn": "^3.0.2",
+    "tedious": "^19.2.1",
+    "uuid": "^13.0.0"
+>>>>>>> origin/Gene-backend
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+<<<<<<< HEAD
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+=======
+    "@types/uuid": "^10.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+>>>>>>> origin/Gene-backend
     "tailwindcss": "^4",
     "typescript": "^5"
   }
