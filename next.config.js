@@ -4,9 +4,8 @@ const nextConfig = {
     root: __dirname,
   },
   experimental: {
-    turbo: {
-      root: __dirname,
-    },
+    // Proxy buffers request bodies; keep above our 10MB upload limit to avoid truncated multipart payloads.
+    proxyClientMaxBodySize: "20mb",
   },
 };
 

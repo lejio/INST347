@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 interface FlashcardSet {
@@ -17,7 +18,6 @@ export default function DashboardClient({
 }) {
   const [sets, setSets] = useState(initialSets);
   const [uploading, setUploading] = useState(false);
-  const [creating, setCreating] = useState(false);
 
   async function handleFileUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,56 +26,46 @@ export default function DashboardClient({
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    const res = await fetch("/api/flashcards/generate", {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/flashcards/generate", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (res.ok) {
-      setSets((prev) => [data, ...prev]);
-      form.reset();
-    } else {
-      alert(data.error || "Upload failed");
+      const raw = await res.text();
+      let data: { error?: string } | null = null;
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = { error: raw.startsWith("<!DOCTYPE") ? "Upload failed" : raw };
+        }
+      }
+
+      if (res.ok) {
+        if (
+          data &&
+          typeof data === "object" &&
+          "id" in data &&
+          "set_name" in data &&
+          "card_count" in data &&
+          "create_date" in data &&
+          "visibility" in data
+        ) {
+          setSets((prev) => [data as FlashcardSet, ...prev]);
+          form.reset();
+        } else {
+          alert("Upload succeeded but returned an unexpected response.");
+        }
+      } else {
+        alert(data?.error || "Upload failed");
+      }
+    } catch (error) {
+      console.error("Upload failed", error);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
     }
-
-    setUploading(false);
-  }
-
-  async function handleManualCreate(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setCreating(true);
-
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
-    const body = {
-      set_name: formData.get("set_name"),
-      visibility: formData.get("visibility"),
-      cards: [
-        {
-          front: formData.get("front"),
-          back: formData.get("back"),
-          link: formData.get("link") || "",
-        },
-      ],
-    };
-
-    const res = await fetch("/api/flashcards", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      setSets((prev) => [data, ...prev]);
-      form.reset();
-    } else {
-      alert(data.error || "Create failed");
-    }
-
-    setCreating(false);
   }
 
   return (
@@ -109,48 +99,16 @@ export default function DashboardClient({
 
       {/* Manual Create Section */}
       <section className="mb-8 rounded-lg border border-zinc-200 p-6">
-        <h2 className="text-lg font-medium mb-4">Create Flashcard Manually</h2>
-        <form onSubmit={handleManualCreate} className="flex flex-col gap-3">
-          <input
-            type="text"
-            name="set_name"
-            placeholder="Set name"
-            required
-            className="rounded border px-3 py-2"
-          />
-          <select name="visibility" className="rounded border px-3 py-2">
-            <option value="private">Private</option>
-            <option value="public">Public</option>
-            <option value="unlisted">Unlisted</option>
-          </select>
-          <input
-            type="text"
-            name="front"
-            placeholder="Card front (question)"
-            required
-            className="rounded border px-3 py-2"
-          />
-          <input
-            type="text"
-            name="back"
-            placeholder="Card back (answer)"
-            required
-            className="rounded border px-3 py-2"
-          />
-          <input
-            type="text"
-            name="link"
-            placeholder="Source link (optional)"
-            className="rounded border px-3 py-2"
-          />
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-          >
-            {creating ? "Creating..." : "Create Set"}
-          </button>
-        </form>
+        <h2 className="mb-2 text-lg font-medium">Create Flashcards Manually</h2>
+        <p className="mb-4 text-sm text-zinc-600">
+          Open the builder page to add as many flashcards as you want.
+        </p>
+        <Link
+          href="/dashboard/create"
+          className="inline-flex rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+        >
+          Open Flashcard Builder
+        </Link>
       </section>
 
       {/* Sets List */}

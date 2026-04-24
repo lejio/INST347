@@ -20,7 +20,20 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch (error) {
+    console.error("[flashcards] Failed to parse multipart form body", error);
+    return Response.json(
+      {
+        error:
+          "Upload payload could not be parsed. If the file is large, try a smaller file or increase proxy body size.",
+      },
+      { status: 400 }
+    );
+  }
+
   const file = formData.get("file") as File | null;
   const setName = (formData.get("set_name") as string) || "Untitled Set";
 
@@ -42,19 +55,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-  // Upload to Azure Blob Storage
-  const blobUrl = await uploadFile(file.name, buffer, file.type);
+    // Upload to Azure Blob Storage
+    const blobUrl = await uploadFile(file.name, buffer, file.type);
 
-  // Generate flashcards via OpenAI
-  const cards = await generateFlashcards(buffer, file.type, file.name);
+    // Generate flashcards via OpenAI
+    const cards = await generateFlashcards(buffer, file.type, file.name);
 
-  // Save to CosmosDB
-  const result = await createSet(session.user.email, setName, cards, "private");
+    // Save to CosmosDB
+    const result = await createSet(session.user.email, setName, cards, "private");
 
-  return Response.json(
-    { ...result, blob_url: blobUrl },
-    { status: 201 }
-  );
+    return Response.json(
+      { ...result, blob_url: blobUrl },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("[flashcards] Generation failed", error);
+    const message = error instanceof Error ? error.message : "Generation failed";
+
+    return Response.json(
+      {
+        error: message,
+      },
+      { status: 500 }
+    );
+  }
 }
