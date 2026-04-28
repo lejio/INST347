@@ -47,4 +47,176 @@ Create a pull request if you want to push your changes onto preview branch.
 
 Likewise if you want to get the most recent changes, you can merge into your development branch.
 
-(Testing)
+
+
+# AI Flashcards Generator
+
+An AI-powered web application that allows users to generate, manage, and study flashcards from uploaded files or manual input.
+
+---
+
+## Overview
+
+AI Flashcards is a full-stack web application built with **Next.js** and powered by **Azure cloud services**. Users can:
+
+* Upload documents and generate flashcards using AI
+* Create flashcards manually
+* Store and manage flashcard sets
+* Authenticate securely using modern auth systems
+
+---
+
+## Tech Stack
+
+### Frontend
+
+* Next.js (App Router)
+* React
+* Tailwind CSS
+
+### Backend
+
+* Next.js API Routes (`/app/api`)
+* Node.js
+
+### Cloud & Services
+
+* Azure Cosmos DB (database)
+* Azure Blob Storage (file storage)
+* Azure App Services / Function App (optional backend deployment)
+* OpenAI API (flashcard generation)
+
+### Authentication
+
+* Better Auth
+
+---
+
+## Project Structure
+
+```
+app/
+ ├── api/                 # Backend routes
+ │   ├── flashcards/
+ │   │   ├── generate/    # AI generation endpoint
+ │   │   └── [setId]/     # Flashcard retrieval
+ │   └── auth/            # Authentication routes
+ │
+ ├── dashboard/           # User dashboard UI
+ ├── login/               # Login page
+ ├── page.tsx             # Homepage
+ │
+lib/                      # Utility functions (DB, AI, etc.)
+public/                   # Static assets
+```
+
+---
+
+## Environment Setup
+
+Create a `.env.local` file in the root directory:
+
+```
+# Auth
+BETTER_AUTH_SECRET=your_secret
+BETTER_AUTH_URL=http://localhost:3000
+
+# Azure SQL (Auth DB)
+MSSQL_SERVER=your_server
+MSSQL_DATABASE=authdb
+MSSQL_USER=your_user
+MSSQL_PASSWORD=your_password
+MSSQL_PORT=1433
+
+# Cosmos DB
+COSMOS_ENDPOINT=your_endpoint
+COSMOS_KEY=your_key
+COSMOS_DATABASE=flashcarddb
+
+# Azure Blob Storage
+AZURE_STORAGE_CONNECTION_STRING=your_connection
+AZURE_STORAGE_CONTAINER_NAME=uploads
+
+# OpenAI
+OPENAI_API_KEY=your_key
+```
+
+---
+
+## Running Locally
+
+1. Install dependencies:
+
+```
+npm install
+```
+
+2. Start the dev server:
+
+```
+npm run dev
+```
+
+3. Open in browser:
+
+```
+http://localhost:3000
+```
+
+---
+
+## How It Works
+
+### Flashcard Generation Flow
+
+1. User uploads a file (frontend)
+2. File is sent to backend API (`/api/flashcards/generate`)
+3. Backend:
+
+   * Processes file
+   * Sends content to OpenAI
+   * Generates flashcards
+   * Stores results in Cosmos DB
+4. Flashcards are returned and displayed to user
+
+---
+
+## Cloud Architecture
+
+* **Frontend:** Next.js (Vercel or local)
+* **Backend:** Next.js API routes
+* **Database:** Azure Cosmos DB
+* **File Storage:** Azure Blob Storage
+* **Authentication DB:** Azure SQL
+* **AI Processing:** OpenAI API
+
+---
+
+## Authentication
+
+* Implemented using Better Auth
+* Supports secure login/signup
+* Uses Azure SQL for storing user credentials
+
+---
+
+## Features
+
+* AI-powered flashcard generation
+* File upload + processing
+* Manual flashcard creation
+* User authentication
+* Cloud-based storage
+* Dashboard UI
+
+---
+
+## 👥 Team
+
+* Team 3
+
+---
+
+## 📜 License
+
+This project is for academic purposes.
