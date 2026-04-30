@@ -81,10 +81,9 @@ AI Flashcards is a full-stack web application built with **Next.js** and powered
 
 ### Cloud & Services
 
-* Azure Cosmos DB (database)
-* Azure Blob Storage (file storage)
-* Azure App Services / Function App (optional backend deployment)
-* OpenAI API (flashcard generation)
+* Azure Cosmos DB -- database
+* Azure Blob Storage -- file storage
+* OpenAI GPT-4o-mini API
 
 ### Authentication
 
