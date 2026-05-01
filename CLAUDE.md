@@ -11,7 +11,7 @@
 - Session checked in proxy.ts via `getSessionCookie` from `better-auth/cookies`
 - Client-side auth via `signIn`, `signUp`, `signOut`, `useSession` from `app/lib/auth-client.ts`
 - All CosmosDB queries use parameterized queries (never string interpolation)
-- File uploads limited to 10MB, allowed types: PDF, PNG, JPEG, DOCX
+- File uploads limited to 50MB, allowed types: PDF, PNG, JPEG, DOCX
 - Visibility values: `public`, `private`, `unlisted`
 - Ownership checks required before PUT/DELETE operations on flashcard sets
 - Azure infrastructure managed by Terraform in `terraform/`

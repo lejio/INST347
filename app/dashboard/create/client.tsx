@@ -118,28 +118,66 @@ export default function CreateSetClient() {
       return;
     }
 
-    const fd = new FormData();
-    fd.append("file", file);
-    if (setName.trim()) fd.append("set_name", setName.trim());
-    fd.append("visibility", visibility);
-
     setUploading(true);
     setProgress(0);
-    setPhase("Uploading…");
+    setPhase("Requesting upload URL…");
 
     let jobId: string;
     try {
-      const res = await fetch("/api/flashcards/generate", {
+      // Step 1: get a SAS upload URL
+      const sasRes = await fetch("/api/flashcards/upload-url", {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.jobId) {
-        setAiError(data?.error || "Failed to start generation");
+      const sasData = await sasRes.json().catch(() => ({}));
+      if (!sasRes.ok || !sasData?.uploadUrl || !sasData?.blobName) {
+        setAiError(sasData?.error || "Failed to get upload URL");
         setUploading(false);
         return;
       }
-      jobId = data.jobId;
+
+      // Step 2: PUT the file directly to Azure Blob Storage
+      setPhase("Uploading file to storage…");
+      setProgress(5);
+      const putRes = await fetch(sasData.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "x-ms-blob-type": "BlockBlob",
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+      if (!putRes.ok) {
+        setAiError(`Upload to storage failed (${putRes.status})`);
+        setUploading(false);
+        return;
+      }
+
+      // Step 3: kick off the generation job (small JSON payload)
+      setPhase("Queuing generation…");
+      const genRes = await fetch("/api/flashcards/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blobName: sasData.blobName,
+          fileName: file.name,
+          fileType: file.type,
+          setName: setName.trim(),
+          visibility,
+        }),
+      });
+      const genData = await genRes.json().catch(() => ({}));
+      if (!genRes.ok || !genData?.jobId) {
+        setAiError(genData?.error || "Failed to start generation");
+        setUploading(false);
+        return;
+      }
+      jobId = genData.jobId;
     } catch {
       setAiError("Upload failed. Please try again.");
       setUploading(false);
