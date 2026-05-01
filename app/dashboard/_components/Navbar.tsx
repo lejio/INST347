@@ -9,7 +9,7 @@ export default function Navbar({ userEmail }: { userEmail?: string | null }) {
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-red-500 text-white font-bold">
             F
           </span>
-          <span className="text-lg font-semibold text-zinc-900">FlashGen</span>
+          <span className="text-lg font-semibold text-zinc-900">Cardly</span>
         </Link>
 
         <div className="flex items-center gap-4">

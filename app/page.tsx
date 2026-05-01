@@ -5,7 +5,7 @@ export default function LandingPage() {
     <div style={styles.page}>
       <div style={styles.left}>
         <div style={styles.logoRow}>
-          <span style={styles.logoText}> FlashGen</span>
+          <span style={styles.logoText}> Cardly</span>
         </div>
         <div style={styles.hero}>
           <h1 style={styles.h1}>Study smarter,<br />not harder.</h1>
