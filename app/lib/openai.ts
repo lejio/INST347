@@ -18,8 +18,10 @@ Generate as many cards as needed to cover the material thoroughly. Aim for 5-20 
 Return ONLY valid JSON. No markdown, no extra text.`;
 
 const MAX_RECURSIVE_CALLS = 20;
-const DOCX_TARGET_CHUNK_CHARS = 5000;
-const PDF_TARGET_CHUNK_CHARS = 4500;
+const DOCX_TARGET_CHUNK_CHARS = 15000;
+const PDF_TARGET_CHUNK_CHARS = 15000;
+const TEXT_MODEL = "gpt-4o-mini";
+const VISION_MODEL = "gpt-4o";
 
 function logGeneration(operationId: string, message: string, meta?: object) {
   if (meta) {
@@ -126,13 +128,14 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 }
 
 async function callOpenAiForCards(
-  messages: OpenAI.ChatCompletionMessageParam[]
+  messages: OpenAI.ChatCompletionMessageParam[],
+  model: string = TEXT_MODEL
 ): Promise<FlashCard[]> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     messages,
     response_format: { type: "json_object" },
-    max_tokens: 4096,
+    max_tokens: 2048,
   });
 
   const content = response.choices[0]?.message?.content;
@@ -335,7 +338,7 @@ async function generateImageFlashcards(
       },
     ];
 
-    const passCards = await callOpenAiForCards(messages);
+    const passCards = await callOpenAiForCards(messages, VISION_MODEL);
     cards.push(...passCards);
 
     logGeneration(operationId, "Image pass processed", {
