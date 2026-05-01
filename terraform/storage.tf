@@ -1,5 +1,3 @@
-# ---------- Storage Account ----------
-
 resource "azurerm_storage_account" "main" {
   name                     = "st${substr(replace(var.project_name, "-", ""), 0, 16)}${random_string.suffix.result}"
   resource_group_name      = azurerm_resource_group.main.name
