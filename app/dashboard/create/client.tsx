@@ -3,13 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-const AI_PHASES = [
-  { label: "Uploading file", target: 20 },
-  { label: "Analyzing content", target: 55 },
-  { label: "Generating flashcards", target: 85 },
-  { label: "Saving set", target: 95 },
-] as const;
-
 type Visibility = "private" | "public" | "unlisted";
 
 type CardDraft = {
@@ -42,42 +35,19 @@ export default function CreateSetClient() {
   const [uploading, setUploading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [progress, setProgress] = useState(0);
-  const [phaseIdx, setPhaseIdx] = useState(0);
-  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [phase, setPhase] = useState("Queued");
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
   }, []);
 
-  function startProgressSimulation() {
-    setProgress(0);
-    setPhaseIdx(0);
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    progressTimerRef.current = setInterval(() => {
-      setProgress((p) => {
-        // soft-cap at 95% until response arrives
-        if (p >= 95) return 95;
-        // accelerate slightly through earlier phases
-        const step = p < 30 ? 1.5 : p < 70 ? 0.9 : 0.4;
-        const next = Math.min(95, p + step);
-        // advance phase based on thresholds
-        const idx = AI_PHASES.findIndex((ph) => next < ph.target);
-        setPhaseIdx(idx === -1 ? AI_PHASES.length - 1 : idx);
-        return next;
-      });
-    }, 200);
-  }
-
-  function stopProgressSimulation(finish: boolean) {
-    if (progressTimerRef.current) {
-      clearInterval(progressTimerRef.current);
-      progressTimerRef.current = null;
-    }
-    if (finish) {
-      setPhaseIdx(AI_PHASES.length - 1);
-      setProgress(100);
+  function stopPolling() {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
     }
   }
 
@@ -154,39 +124,57 @@ export default function CreateSetClient() {
     fd.append("visibility", visibility);
 
     setUploading(true);
-    startProgressSimulation();
+    setProgress(0);
+    setPhase("Uploading…");
+
+    let jobId: string;
     try {
       const res = await fetch("/api/flashcards/generate", {
         method: "POST",
         body: fd,
       });
-      const raw = await res.text();
-      let data: { error?: string; id?: string } | null = null;
-      if (raw) {
-        try {
-          data = JSON.parse(raw);
-        } catch {
-          data = { error: raw.startsWith("<!DOCTYPE") ? "Upload failed" : raw };
-        }
-      }
-      if (!res.ok) {
-        stopProgressSimulation(false);
-        setAiError(data?.error || "Upload failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.jobId) {
+        setAiError(data?.error || "Failed to start generation");
         setUploading(false);
         return;
       }
-      stopProgressSimulation(true);
-      if (data?.id) {
-        router.push(`/dashboard/${data.id}`);
-      } else {
-        router.push("/dashboard");
-      }
-      router.refresh();
+      jobId = data.jobId;
     } catch {
-      stopProgressSimulation(false);
       setAiError("Upload failed. Please try again.");
       setUploading(false);
+      return;
     }
+
+    setPhase("Queued");
+    setProgress(5);
+
+    // Poll the job status
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/flashcards/jobs/${jobId}`);
+        if (!res.ok) return;
+        const job = await res.json();
+        setProgress(typeof job.progress === "number" ? job.progress : 0);
+        setPhase(job.phase || job.status);
+
+        if (job.status === "succeeded") {
+          stopPolling();
+          if (job.set_id) {
+            router.push(`/dashboard/${job.set_id}`);
+          } else {
+            router.push("/dashboard");
+          }
+          router.refresh();
+        } else if (job.status === "failed") {
+          stopPolling();
+          setAiError(job.error || "Generation failed");
+          setUploading(false);
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
+    }, 2000);
   }
 
   return (
@@ -433,9 +421,7 @@ export default function CreateSetClient() {
                       d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                     />
                   </svg>
-                  <span className="font-medium">
-                    {AI_PHASES[phaseIdx].label}…
-                  </span>
+                  <span className="font-medium">{phase}…</span>
                 </div>
                 <span className="text-zinc-500 tabular-nums">
                   {Math.round(progress)}%
@@ -443,29 +429,13 @@ export default function CreateSetClient() {
               </div>
               <div className="h-2 w-full bg-zinc-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-red-500 transition-all duration-200 ease-out"
+                  className="h-full bg-red-500 transition-all duration-300 ease-out"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                {AI_PHASES.map((ph, i) => (
-                  <li
-                    key={ph.label}
-                    className={
-                      i < phaseIdx
-                        ? "text-green-600"
-                        : i === phaseIdx
-                          ? "text-red-600 font-medium"
-                          : "text-zinc-400"
-                    }
-                  >
-                    {i < phaseIdx ? "✓ " : i === phaseIdx ? "• " : "○ "}
-                    {ph.label}
-                  </li>
-                ))}
-              </ol>
               <p className="text-xs text-zinc-500">
-                This may take up to a minute depending on file size.
+                Generation runs in the background. You can leave this page open;
+                we’ll redirect you when it’s done.
               </p>
             </div>
           )}
