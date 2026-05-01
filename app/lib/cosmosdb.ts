@@ -10,6 +10,86 @@ const database = client.database(process.env.COSMOS_DATABASE!);
 
 export const flashcardSetsContainer = database.container("flashcard_sets");
 export const cardsContainer = database.container("cards");
+export const jobsContainer = database.container("jobs");
+
+// --- Generation Jobs ---
+
+export type JobStatus = "pending" | "processing" | "succeeded" | "failed";
+
+export interface GenerationJob {
+  id: string;
+  user_id: string;
+  status: JobStatus;
+  phase: string;
+  progress: number;
+  file_name: string;
+  set_name: string;
+  visibility: "public" | "private" | "unlisted";
+  set_id?: string;
+  error?: string;
+  created_at: string;
+  updated_at: string;
+  ttl: number;
+}
+
+export async function createJob(input: {
+  userId: string;
+  fileName: string;
+  setName: string;
+  visibility: "public" | "private" | "unlisted";
+}): Promise<GenerationJob> {
+  const now = new Date().toISOString();
+  const job: GenerationJob = {
+    id: uuidv4(),
+    user_id: input.userId,
+    status: "pending",
+    phase: "Queued",
+    progress: 0,
+    file_name: input.fileName,
+    set_name: input.setName,
+    visibility: input.visibility,
+    created_at: now,
+    updated_at: now,
+    ttl: 60 * 60 * 24, // 24h
+  };
+  await jobsContainer.items.create(job);
+  return job;
+}
+
+export async function getJob(
+  jobId: string,
+  userId: string
+): Promise<GenerationJob | null> {
+  try {
+    const { resource } = await jobsContainer
+      .item(jobId, userId)
+      .read<GenerationJob>();
+    return resource ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateJob(
+  jobId: string,
+  userId: string,
+  patch: Partial<
+    Pick<
+      GenerationJob,
+      "status" | "phase" | "progress" | "set_id" | "error"
+    >
+  >
+): Promise<GenerationJob | null> {
+  const existing = await getJob(jobId, userId);
+  if (!existing) return null;
+  const updated: GenerationJob = {
+    ...existing,
+    ...patch,
+    updated_at: new Date().toISOString(),
+  };
+  await jobsContainer.item(jobId, userId).replace(updated);
+  return updated;
+}
 
 // --- Flashcard Sets ---
 

@@ -47,3 +47,14 @@ resource "azurerm_cosmosdb_sql_container" "cards" {
   database_name       = azurerm_cosmosdb_sql_database.main.name
   partition_key_paths = ["/set_id"]
 }
+
+resource "azurerm_cosmosdb_sql_container" "jobs" {
+  name                = "jobs"
+  resource_group_name = azurerm_resource_group.main.name
+  account_name        = azurerm_cosmosdb_account.main.name
+  database_name       = azurerm_cosmosdb_sql_database.main.name
+  partition_key_paths = ["/user_id"]
+
+  # Auto-expire job docs after 24 hours
+  default_ttl = 86400
+}

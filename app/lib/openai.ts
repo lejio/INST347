@@ -166,7 +166,6 @@ async function generateDocxFlashcards(
   );
 
   const chunks = splitTextIntoChunks(text, chunkSize).slice(0, MAX_RECURSIVE_CALLS);
-  const cards: FlashCard[] = [];
 
   logGeneration(operationId, "DOCX generation started", {
     fileName,
@@ -176,37 +175,30 @@ async function generateDocxFlashcards(
     maxRecursiveCalls: MAX_RECURSIVE_CALLS,
   });
 
-  async function processChunk(index: number): Promise<void> {
-    if (index >= chunks.length) {
-      return;
-    }
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk, index) => {
+      const messages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content:
+            `This is chunk ${index + 1} of ${chunks.length} from ${fileName}. ` +
+            "Generate flashcards ONLY for this chunk and avoid duplicates from prior chunks.\n\n" +
+            chunk,
+        },
+      ];
 
-    const chunk = chunks[index];
-    const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content:
-          `This is chunk ${index + 1} of ${chunks.length} from ${fileName}. ` +
-          "Generate flashcards ONLY for this chunk and avoid duplicates from prior chunks.\n\n" +
-          chunk,
-      },
-    ];
+      const chunkCards = await callOpenAiForCards(messages);
+      logGeneration(operationId, "DOCX chunk processed", {
+        chunk: index + 1,
+        totalChunks: chunks.length,
+        chunkCards: chunkCards.length,
+      });
+      return chunkCards;
+    })
+  );
 
-    const chunkCards = await callOpenAiForCards(messages);
-    cards.push(...chunkCards);
-
-    logGeneration(operationId, "DOCX chunk processed", {
-      chunk: index + 1,
-      totalChunks: chunks.length,
-      chunkCards: chunkCards.length,
-      runningTotalCards: cards.length,
-    });
-
-    await processChunk(index + 1);
-  }
-
-  await processChunk(0);
+  const cards: FlashCard[] = chunkResults.flat();
 
   const deduped = dedupeCards(cards);
   logGeneration(operationId, "DOCX generation completed", {
@@ -249,7 +241,6 @@ async function generatePdfFlashcards(
   );
 
   const chunks = splitTextIntoChunks(text, chunkSize).slice(0, MAX_RECURSIVE_CALLS);
-  const cards: FlashCard[] = [];
 
   logGeneration(operationId, "PDF generation started", {
     fileName,
@@ -260,37 +251,30 @@ async function generatePdfFlashcards(
     maxRecursiveCalls: MAX_RECURSIVE_CALLS,
   });
 
-  async function processChunk(index: number): Promise<void> {
-    if (index >= chunks.length) {
-      return;
-    }
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk, index) => {
+      const messages: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content:
+            `This is PDF text chunk ${index + 1} of ${chunks.length} from ${fileName}. ` +
+            "Generate flashcards ONLY for this chunk and avoid duplicates from prior chunks.\n\n" +
+            chunk,
+        },
+      ];
 
-    const chunk = chunks[index];
-    const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content:
-          `This is PDF text chunk ${index + 1} of ${chunks.length} from ${fileName}. ` +
-          "Generate flashcards ONLY for this chunk and avoid duplicates from prior chunks.\n\n" +
-          chunk,
-      },
-    ];
+      const chunkCards = await callOpenAiForCards(messages);
+      logGeneration(operationId, "PDF chunk processed", {
+        chunk: index + 1,
+        totalChunks: chunks.length,
+        chunkCards: chunkCards.length,
+      });
+      return chunkCards;
+    })
+  );
 
-    const chunkCards = await callOpenAiForCards(messages);
-    cards.push(...chunkCards);
-
-    logGeneration(operationId, "PDF chunk processed", {
-      chunk: index + 1,
-      totalChunks: chunks.length,
-      chunkCards: chunkCards.length,
-      runningTotalCards: cards.length,
-    });
-
-    await processChunk(index + 1);
-  }
-
-  await processChunk(0);
+  const cards: FlashCard[] = chunkResults.flat();
 
   const deduped = dedupeCards(cards);
   logGeneration(operationId, "PDF generation completed", {
