@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    env:
+      BETTER_AUTH_SECRET: ci-dummy-secret-for-build-only-not-real-value
+      BETTER_AUTH_URL: http://localhost:3000
+      MSSQL_SERVER: ci.example.com
+      MSSQL_DATABASE: ci
+      MSSQL_USER: ci
+      MSSQL_PASSWORD: ci
+      MSSQL_PORT: '1433'
+      COSMOS_ENDPOINT: https://ci.example.com
+      COSMOS_KEY: ci
+      COSMOS_DATABASE: ci
+      AZURE_STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=https;AccountName=ci;AccountKey=Y2k=;EndpointSuffix=core.windows.net
+      AZURE_STORAGE_CONTAINER_NAME: uploads
+      OPENAI_API_KEY: sk-ci-dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
