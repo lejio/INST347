@@ -10,9 +10,9 @@ export default function SignOutButton() {
     <button
       onClick={async () => {
         await signOut();
-        router.push("/login");
+        router.push("/");
       }}
-      className="rounded-lg border border-zinc-300 px-4 py-2 hover:bg-zinc-100"
+      className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-all"
     >
       Sign Out
     </button>
