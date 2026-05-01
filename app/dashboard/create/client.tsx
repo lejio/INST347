@@ -1,7 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const AI_PHASES = [
+  { label: "Uploading file", target: 20 },
+  { label: "Analyzing content", target: 55 },
+  { label: "Generating flashcards", target: 85 },
+  { label: "Saving set", target: 95 },
+] as const;
 
 type Visibility = "private" | "public" | "unlisted";
 
@@ -34,6 +41,45 @@ export default function CreateSetClient() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    };
+  }, []);
+
+  function startProgressSimulation() {
+    setProgress(0);
+    setPhaseIdx(0);
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      setProgress((p) => {
+        // soft-cap at 95% until response arrives
+        if (p >= 95) return 95;
+        // accelerate slightly through earlier phases
+        const step = p < 30 ? 1.5 : p < 70 ? 0.9 : 0.4;
+        const next = Math.min(95, p + step);
+        // advance phase based on thresholds
+        const idx = AI_PHASES.findIndex((ph) => next < ph.target);
+        setPhaseIdx(idx === -1 ? AI_PHASES.length - 1 : idx);
+        return next;
+      });
+    }, 200);
+  }
+
+  function stopProgressSimulation(finish: boolean) {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    if (finish) {
+      setPhaseIdx(AI_PHASES.length - 1);
+      setProgress(100);
+    }
+  }
 
   function updateCard(index: number, field: keyof CardDraft, value: string) {
     setCards((prev) =>
@@ -108,6 +154,7 @@ export default function CreateSetClient() {
     fd.append("visibility", visibility);
 
     setUploading(true);
+    startProgressSimulation();
     try {
       const res = await fetch("/api/flashcards/generate", {
         method: "POST",
@@ -123,10 +170,12 @@ export default function CreateSetClient() {
         }
       }
       if (!res.ok) {
+        stopProgressSimulation(false);
         setAiError(data?.error || "Upload failed");
         setUploading(false);
         return;
       }
+      stopProgressSimulation(true);
       if (data?.id) {
         router.push(`/dashboard/${data.id}`);
       } else {
@@ -134,6 +183,7 @@ export default function CreateSetClient() {
       }
       router.refresh();
     } catch {
+      stopProgressSimulation(false);
       setAiError("Upload failed. Please try again.");
       setUploading(false);
     }
@@ -179,7 +229,7 @@ export default function CreateSetClient() {
       {/* Create Group panel */}
       <section className="bg-white shadow-md md:p-10 p-5 rounded-md">
         <h2 className="text-xl font-semibold text-zinc-900 mb-1">
-          Create Group
+          Create Flashcard Set
         </h2>
         <p className="text-sm text-zinc-500 mb-6">
           Set details that apply to the whole flashcard group.
@@ -349,10 +399,76 @@ export default function CreateSetClient() {
               type="file"
               accept=".pdf,.png,.jpg,.jpeg,.docx"
               required
+              disabled={uploading}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="mt-1 block w-full text-sm text-zinc-700 file:mr-4 file:rounded-md file:border-0 file:bg-red-500 file:px-4 file:py-2 file:text-white hover:file:bg-red-600"
+              className="mt-1 block w-full text-sm text-zinc-700 file:mr-4 file:rounded-md file:border-0 file:bg-red-500 file:px-4 file:py-2 file:text-white hover:file:bg-red-600 disabled:opacity-60"
             />
           </label>
+
+          {uploading && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-md border border-zinc-200 bg-zinc-50 p-4 space-y-3"
+            >
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-zinc-700">
+                  <svg
+                    className="animate-spin h-4 w-4 text-red-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                  <span className="font-medium">
+                    {AI_PHASES[phaseIdx].label}…
+                  </span>
+                </div>
+                <span className="text-zinc-500 tabular-nums">
+                  {Math.round(progress)}%
+                </span>
+              </div>
+              <div className="h-2 w-full bg-zinc-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-red-500 transition-all duration-200 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                {AI_PHASES.map((ph, i) => (
+                  <li
+                    key={ph.label}
+                    className={
+                      i < phaseIdx
+                        ? "text-green-600"
+                        : i === phaseIdx
+                          ? "text-red-600 font-medium"
+                          : "text-zinc-400"
+                    }
+                  >
+                    {i < phaseIdx ? "✓ " : i === phaseIdx ? "• " : "○ "}
+                    {ph.label}
+                  </li>
+                ))}
+              </ol>
+              <p className="text-xs text-zinc-500">
+                This may take up to a minute depending on file size.
+              </p>
+            </div>
+          )}
 
           {aiError && <p className="text-sm text-red-600">{aiError}</p>}
 

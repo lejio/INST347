@@ -1,21 +1,10 @@
 import OpenAI from "openai";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { extractText, getDocumentProxy } from "unpdf";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
-
-// In Next.js server routes, explicitly point pdf.js worker to a real file path.
-if (typeof window === "undefined") {
-  const workerPath = path.join(
-    process.cwd(),
-    "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
-  );
-  PDFParse.setWorker(pathToFileURL(workerPath).toString());
-}
 
 const SYSTEM_PROMPT = `You are a flashcard generator. Given study material (text, images, or documents), create comprehensive flashcards that cover the key concepts.
 
@@ -237,14 +226,12 @@ async function generatePdfFlashcards(
   fileName: string,
   operationId: string
 ): Promise<FlashCard[]> {
-  const parser = new PDFParse({ data: fileBuffer });
-  let result: Awaited<ReturnType<PDFParse["getText"]>>;
-  try {
-    result = await parser.getText();
-  } finally {
-    await parser.destroy();
-  }
-  const text = result.text?.trim();
+  const pdf = await getDocumentProxy(new Uint8Array(fileBuffer));
+  const { text: textPages, totalPages } = await extractText(pdf, {
+    mergePages: false,
+  });
+  const pages = Array.isArray(textPages) ? textPages : [textPages];
+  const text = pages.join("\n\n").trim();
 
   if (!text) {
     throw new Error(
@@ -267,7 +254,7 @@ async function generatePdfFlashcards(
   logGeneration(operationId, "PDF generation started", {
     fileName,
     textLength: text.length,
-    pageCount: result.pages?.length,
+    pageCount: totalPages,
     chunkSize,
     chunkCount: chunks.length,
     maxRecursiveCalls: MAX_RECURSIVE_CALLS,
