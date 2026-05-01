@@ -1,3 +1,5 @@
+# ---------- Outputs for .env.local ----------
+
 output "mssql_server_fqdn" {
   description = "MSSQL_SERVER — Azure SQL Server fully qualified domain name"
   value       = azurerm_mssql_server.main.fully_qualified_domain_name
