@@ -20,75 +20,6 @@ Return ONLY valid JSON. No markdown, no extra text.`;
 const MAX_RECURSIVE_CALLS = 20;
 const DOCX_TARGET_CHUNK_CHARS = 5000;
 const PDF_TARGET_CHUNK_CHARS = 4500;
-const MAX_OUTPUT_TOKENS = 2048;
-// Stay under the org's gpt-4o TPM limit (default 30k). Leave headroom.
-const TPM_LIMIT = 28000;
-const CONCURRENCY = 5;
-
-// Rough char->token estimate for input (gpt-4o is ~4 chars/token).
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-// Sliding-window token-per-minute limiter. Single instance shared across calls.
-class TokenBucket {
-  private events: { ts: number; tokens: number }[] = [];
-  private chain: Promise<void> = Promise.resolve();
-
-  constructor(private limit: number, private windowMs = 60_000) {}
-
-  private prune(now: number) {
-    const cutoff = now - this.windowMs;
-    while (this.events.length && this.events[0].ts < cutoff) {
-      this.events.shift();
-    }
-  }
-
-  private used(now: number): number {
-    this.prune(now);
-    return this.events.reduce((s, e) => s + e.tokens, 0);
-  }
-
-  // Reserve `tokens` budget; resolves when budget is available. Serialized so
-  // concurrent callers don't all see "available" at once.
-  reserve(tokens: number): Promise<void> {
-    const run = async () => {
-      const cost = Math.min(tokens, this.limit);
-      // Wait until adding `cost` keeps us under the limit.
-      while (this.used(Date.now()) + cost > this.limit) {
-        const oldest = this.events[0];
-        const waitMs = oldest
-          ? Math.max(50, oldest.ts + this.windowMs - Date.now() + 50)
-          : 250;
-        await new Promise((r) => setTimeout(r, waitMs));
-      }
-      this.events.push({ ts: Date.now(), tokens: cost });
-    };
-    const next = this.chain.then(run, run);
-    this.chain = next.catch(() => {});
-    return next;
-  }
-}
-
-const tpmBucket = new TokenBucket(TPM_LIMIT);
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (true) {
-      const i = cursor++;
-      if (i >= items.length) return;
-      results[i] = await worker(items[i], i);
-    }
-  });
-  await Promise.all(runners);
-  return results;
-}
 
 function logGeneration(operationId: string, message: string, meta?: object) {
   if (meta) {
@@ -197,53 +128,20 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 async function callOpenAiForCards(
   messages: OpenAI.ChatCompletionMessageParam[]
 ): Promise<FlashCard[]> {
-  // Estimate input tokens from message text content for the budget reservation.
-  const inputText = messages
-    .map((m) => {
-      if (typeof m.content === "string") return m.content;
-      if (Array.isArray(m.content)) {
-        return m.content
-          .map((p) => ("text" in p && typeof p.text === "string" ? p.text : ""))
-          .join("");
-      }
-      return "";
-    })
-    .join("\n");
-  const estimated = estimateTokens(inputText) + MAX_OUTPUT_TOKENS;
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages,
+    response_format: { type: "json_object" },
+    max_tokens: 4096,
+  });
 
-  const maxAttempts = 4;
-  let lastErr: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await tpmBucket.reserve(estimated);
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages,
-        response_format: { type: "json_object" },
-        max_tokens: MAX_OUTPUT_TOKENS,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No response from OpenAI");
-      }
-
-      const parsed = JSON.parse(content);
-      return normalizeCards(parsed.cards);
-    } catch (err: unknown) {
-      lastErr = err;
-      const status = (err as { status?: number })?.status;
-      if (status !== 429 || attempt === maxAttempts) throw err;
-      // Honor server-suggested retry delay if present, else exponential backoff.
-      const message = (err as { message?: string })?.message ?? "";
-      const match = message.match(/try again in ([\d.]+)s/i);
-      const waitMs = match
-        ? Math.ceil(parseFloat(match[1]) * 1000) + 250
-        : Math.min(20_000, 1000 * 2 ** attempt);
-      await new Promise((r) => setTimeout(r, waitMs));
-    }
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No response from OpenAI");
   }
-  throw lastErr;
+
+  const parsed = JSON.parse(content);
+  return normalizeCards(parsed.cards);
 }
 
 async function generateDocxFlashcards(
@@ -277,10 +175,8 @@ async function generateDocxFlashcards(
     maxRecursiveCalls: MAX_RECURSIVE_CALLS,
   });
 
-  const chunkResults = await mapWithConcurrency(
-    chunks,
-    CONCURRENCY,
-    async (chunk, index) => {
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk, index) => {
       const messages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -299,7 +195,7 @@ async function generateDocxFlashcards(
         chunkCards: chunkCards.length,
       });
       return chunkCards;
-    }
+    })
   );
 
   const cards: FlashCard[] = chunkResults.flat();
@@ -355,10 +251,8 @@ async function generatePdfFlashcards(
     maxRecursiveCalls: MAX_RECURSIVE_CALLS,
   });
 
-  const chunkResults = await mapWithConcurrency(
-    chunks,
-    CONCURRENCY,
-    async (chunk, index) => {
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk, index) => {
       const messages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -377,7 +271,7 @@ async function generatePdfFlashcards(
         chunkCards: chunkCards.length,
       });
       return chunkCards;
-    }
+    })
   );
 
   const cards: FlashCard[] = chunkResults.flat();
