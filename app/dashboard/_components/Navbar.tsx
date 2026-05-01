@@ -7,7 +7,7 @@ export default function Navbar({ userEmail }: { userEmail?: string | null }) {
       <div className="max-w-screen-2xl mx-auto flex items-center justify-between px-3 xl:px-20 lg:px-14 md:px-10 h-16">
         <Link href="/dashboard" className="flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-red-500 text-white font-bold">
-            F
+            C
           </span>
           <span className="text-lg font-semibold text-zinc-900">Cardly</span>
         </Link>

@@ -158,8 +158,8 @@ const styles = {
     marginBottom: -1.5,
   },
   tabActive: {
-    color: '#185FA5',
-    borderBottom: '2px solid #185FA5',
+    color: '#fb2c36',
+    borderBottom: '2px solid #fb2c36',
     fontWeight: 500,
   },
   field: { marginBottom: 16 },
@@ -179,7 +179,7 @@ const styles = {
   btnPrimary: {
     width: '100%',
     padding: '10px',
-    background: '#185FA5',
+    background: '#fb2c36',
     color: '#ffffff',
     fontSize: 14,
     fontWeight: 500,
