@@ -1,5 +1,3 @@
-# ---------- Azure SQL Server (better-auth database) ----------
-
 resource "azurerm_mssql_server" "main" {
   name                         = "sql-${var.project_name}-${random_string.suffix.result}"
   resource_group_name          = azurerm_resource_group.main.name
